@@ -24,3 +24,20 @@ def calibrate(scores, quantile=0.99):
     return {"threshold": threshold, "quantile": quantile, "calibration_count": len(values)}
 
 
+def analyze(calibration, recordings, quantile=0.99):
+    model = calibrate(calibration, quantile)
+    rows, seen = [], set()
+    for item in recordings:
+        identity = item["file"]
+        if not identity or identity in seen:
+            raise ValueError("Recording filenames must be nonempty and unique")
+        seen.add(identity)
+        score = finite(item["score"])
+        rows.append({"file": identity, "score": score,
+                     "above_threshold": score > model["threshold"],
+                     "margin": score - model["threshold"]})
+    rows.sort(key=lambda item: item["score"], reverse=True)
+    return {**model, "recordings": rows, "flagged": sum(row["above_threshold"] for row in rows),
+            "scope": "Anomaly triage only; scores do not identify a fault or its cause."}
+
+
