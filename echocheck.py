@@ -41,3 +41,25 @@ def analyze(calibration, recordings, quantile=0.99):
             "scope": "Anomaly triage only; scores do not identify a fault or its cause."}
 
 
+def read_scores(path):
+    with Path(path).open(newline="") as handle:
+        reader = csv.DictReader(handle)
+        if not reader.fieldnames or not {"file", "score"}.issubset(reader.fieldnames):
+            raise ValueError("CSV must contain file,score headers")
+        return list(reader)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--healthy", required=True, type=Path)
+    parser.add_argument("--scores", required=True, type=Path)
+    parser.add_argument("--quantile", type=float, default=.99)
+    parser.add_argument("--output", required=True, type=Path)
+    args = parser.parse_args()
+    report = analyze([item["score"] for item in read_scores(args.healthy)],
+                     read_scores(args.scores), args.quantile)
+    args.output.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+
+
+if __name__ == "__main__":
+    main()
